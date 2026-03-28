@@ -1,0 +1,39 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions: {}
+
+jobs:
+  release_zip_file:
+    name: Prepare and upload release asset
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      HUME_TTS_ROOT_DIR: "${{ github.workspace }}/custom_components/hume_tts"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set release version number in manifest
+        shell: bash
+        run: |
+          version="${{ github.event.release.tag_name }}"
+          version="${version,,}"
+          version="${version#v}"
+          # update manifest.json
+          jq ".version = \"${version}\"" "${{ env.HUME_TTS_ROOT_DIR }}/manifest.json" > "${{ env.HUME_TTS_ROOT_DIR }}/manifest.json.tmp"
+          mv "${{ env.HUME_TTS_ROOT_DIR }}/manifest.json.tmp" "${{ env.HUME_TTS_ROOT_DIR }}/manifest.json"
+
+      - name: Zip the integration directory
+        run: |
+          cd "${{ env.HUME_TTS_ROOT_DIR }}"
+          zip -r hume_tts.zip ./
+
+      - name: Upload the ZIP file to the release
+        uses: softprops/action-gh-release@v2.3.2
+        with:
+          files: ${{ env.HUME_TTS_ROOT_DIR }}/hume_tts.zip

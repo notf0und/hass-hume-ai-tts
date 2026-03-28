@@ -1,0 +1,68 @@
+---
+# GitHub labels for Hume AI TTS
+# These labels are automatically configured using GitHub Labeler Action
+# https://github.com/marketplace/actions/github-labeler
+#
+# Labels are used by Release Drafter to organize changelog entries
+
+# Type labels
+- name: bug
+  description: Something isn't working
+  color: d73a4a
+
+- name: enhancement
+  description: New feature or request
+  color: a2eeef
+
+- name: documentation
+  description: Improvements or additions to documentation
+  color: 0075ca
+
+- name: testing
+  description: Testing and test improvements
+  color: b1fc6f
+
+- name: refactoring
+  description: Code refactoring
+  color: ef67c4
+
+- name: performance
+  description: Performance improvements
+  color: "016175"
+
+- name: dependencies
+  description: Pull requests that update a dependency file
+  color: 0366d6
+
+- name: ci
+  description: Continuous Integration
+  color: 4a97d6
+
+# Status labels
+- name: breaking
+  description: Breaking Changes
+  color: bfd4f2
+
+- name: help wanted
+  description: Extra attention is needed
+  color: 008672
+
+- name: good first issue
+  description: Good for newcomers
+  color: 7057ff
+
+- name: question
+  description: Further information is requested
+  color: d876e3
+
+- name: duplicate
+  description: This issue or pull request already exists
+  color: cfd3d7
+
+- name: invalid
+  description: This doesn't seem right
+  color: e4e669
+
+- name: wontfix
+  description: This will not be worked on
+  color: ffffff

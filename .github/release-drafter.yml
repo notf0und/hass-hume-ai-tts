@@ -1,0 +1,64 @@
+---
+name-template: "v$RESOLVED_VERSION"
+tag-template: "v$RESOLVED_VERSION"
+change-template: "- $TITLE @$AUTHOR (#$NUMBER)"
+sort-direction: ascending
+
+categories:
+  - title: "🚀 Features"
+    labels:
+      - "enhancement"
+      - "feat"
+      - "feature"
+  - title: "🐛 Fixes"
+    labels:
+      - "bug"
+      - "fix"
+      - "bugfix"
+  - title: "🧪 Testing"
+    labels:
+      - "testing"
+      - "test"
+  - title: "📚 Documentation"
+    labels:
+      - "documentation"
+      - "docs"
+  - title: "🔧 Maintenance"
+    labels:
+      - "refactoring"
+      - "refactor"
+      - "chore"
+      - "maintenance"
+  - title: "⚠️ Breaking Changes"
+    labels:
+      - "breaking"
+      - "breaking-change"
+  - title: "🔄 Dependencies"
+    labels:
+      - "dependencies"
+      - "build"
+
+version-resolver:
+  major:
+    labels:
+      - "major"
+      - "breaking"
+      - "breaking-change"
+  minor:
+    labels:
+      - "minor"
+      - "feature"
+      - "feat"
+      - "enhancement"
+  patch:
+    labels:
+      - "patch"
+      - "bugfix"
+      - "fix"
+      - "bug"
+  default: patch
+
+template: |
+  ## Changes
+
+  $CHANGES
