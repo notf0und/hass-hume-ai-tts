@@ -100,7 +100,7 @@ Or add it to your voice assistant pipeline:
 
 ## Getting an API Key
 
-1. Visit [Hume AI Console](https://console.hume.ai/)
+1. Visit [Hume AI Console](https://app.hume.ai/developers/)
 2. Sign up or log in
 3. Create a new API key
 4. Copy the key and add it to the integration configuration
@@ -120,3 +120,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Disclaimer
 
 This integration is not officially affiliated with Hume AI. It is a community-maintained integration.
+
+[sponsorsbadge]: https://img.shields.io/badge/sponsor-GitHub-blue?style=flat-square
+[sponsors]: https://github.com/sponsors/notf0und
+[buymecoffeebadge]: https://img.shields.io/badge/buy%20me%20a%20coffee-donate-yellow?style=flat-square
+[buymecoffee]: https://buymeacoffee.com/gonzarturm
