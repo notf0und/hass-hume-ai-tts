@@ -67,10 +67,11 @@ action: tts.speak
 target:
    entity_id: tts.hume_ai
 data:
-   message: Hello, this is a test message
+   message: There is someone at the door!
    media_player_entity_id: media_player.living_room
    options:
-      voice: Booming American Narrator
+      voice: Booming American Narrator #optional voice selection
+      description: urgent, alarmed #optional description for emotion-aware synthesis
 ```
 
 Or in automations:

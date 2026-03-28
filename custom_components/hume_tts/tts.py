@@ -33,6 +33,8 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
+ATTR_DESCRIPTION = "description"
+
 SUPPORTED_LANGUAGES = [
     "en",
     "es",
@@ -92,19 +94,20 @@ def _parse_voice_key(voice_key: str) -> tuple[str, str]:
     return voice_key, PROVIDER_HUME_AI
 
 
-def _build_utterance(text: str, voice_key: str) -> PostedUtterance:
-    """Build a PostedUtterance from text and voice key."""
+def _build_utterance(text: str, voice_key: str, description: str | None = None) -> PostedUtterance:
+    """Build a PostedUtterance from text, voice key, and optional acting instructions."""
     voice_name, provider = _parse_voice_key(voice_key)
     return PostedUtterance(
         text=text,
         voice=PostedUtteranceVoiceWithName(name=voice_name, provider=provider),
+        description=description or None,
     )
 
 
 class HumeTTSEntity(TextToSpeechEntity):
     """The Hume AI TTS entity."""
 
-    _attr_supported_options = [ATTR_VOICE]
+    _attr_supported_options = [ATTR_VOICE, ATTR_DESCRIPTION]
 
     def __init__(
         self,
@@ -138,11 +141,12 @@ class HumeTTSEntity(TextToSpeechEntity):
     ) -> TtsAudioType:
         """Load TTS audio from the Hume AI API."""
         voice_key = options.get(ATTR_VOICE, self._default_voice_key)
-        _LOGGER.debug("Hume AI TTS called: voice=%s text=%r", voice_key, message)
+        description = options.get(ATTR_DESCRIPTION)
+        _LOGGER.debug("Hume AI TTS called: voice=%s description=%r text=%r", voice_key, description, message)
 
         try:
             result = await self._client.tts.synthesize_json(
-                utterances=[_build_utterance(message, voice_key)],
+                utterances=[_build_utterance(message, voice_key, description)],
                 format=FormatMp3(),
                 num_generations=1,
             )

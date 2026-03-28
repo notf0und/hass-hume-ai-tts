@@ -34,6 +34,15 @@ _LOGGER = logging.getLogger(__name__)
 USER_STEP_SCHEMA = vol.Schema({vol.Required(CONF_API_KEY): str})
 
 
+async def _validate_api_key(hass: HomeAssistant, api_key: str) -> None:
+    """Validate the API key by making a lightweight voices list call. Raises ApiError on failure."""
+    httpx_client = get_async_client(hass)
+    client = AsyncHumeClient(api_key=api_key, httpx_client=httpx_client)
+    pager = await client.tts.voices.list(provider=PROVIDER_HUME_AI, page_size=1)
+    async for _ in pager:
+        break
+
+
 async def get_voices(hass: HomeAssistant, api_key: str) -> dict[str, str]:
     """Fetch all available voices (Hume AI presets + custom) as {key: label}."""
     httpx_client = get_async_client(hass)
@@ -74,13 +83,15 @@ class HumeTTSConfigFlow(ConfigFlow, domain=DOMAIN):
         """Handle the initial step."""
         errors: dict[str, str] = {}
         if user_input is not None:
+            api_key = user_input[CONF_API_KEY]
             try:
-                voices = await get_voices(self.hass, user_input[CONF_API_KEY])
+                await _validate_api_key(self.hass, api_key)
             except ApiError:
                 errors["base"] = "invalid_api_key"
             except Exception:  # noqa: BLE001
                 errors["base"] = "unknown"
             else:
+                voices = await get_voices(self.hass, api_key)
                 default_voice = DEFAULT_VOICE if DEFAULT_VOICE in voices else (list(voices)[0] if voices else DEFAULT_VOICE)
                 return self.async_create_entry(
                     title="Hume AI TTS",
