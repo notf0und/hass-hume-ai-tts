@@ -55,7 +55,7 @@ Click the button above or follow these steps:
 
 1. Go to **Settings** → **Devices & Services** → **+ Add Integration**
 2. Search for **Hume AI TTS**
-3. Enter your [Hume API key](https://console.hume.ai/)
+3. Enter your [Hume API key](https://app.hume.ai/developers)
 4. Click **Create**
 
 ## Usage
@@ -100,7 +100,7 @@ Or add it to your voice assistant pipeline:
 
 ## Getting an API Key
 
-1. Visit [Hume AI Console](https://app.hume.ai/developers/)
+1. Visit [Hume AI Console](https://app.hume.ai/developers)
 2. Sign up or log in
 3. Create a new API key
 4. Copy the key and add it to the integration configuration
