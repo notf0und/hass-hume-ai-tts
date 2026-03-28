@@ -33,5 +33,15 @@
         }
       }
     }
+  },
+  "services": {
+    "speak": {
+      "fields": {
+        "description": {
+          "name": "Acting instructions",
+          "description": "Optional acting instructions to guide emotional delivery (e.g. 'urgent, panicked' or 'calm, whispering'). Only supported with Octave 1."
+        }
+      }
+    }
   }
 }
