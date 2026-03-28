@@ -1,0 +1,146 @@
+name: Validate
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-hassfest:
+    name: Hassfest Validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: home-assistant/actions/hassfest@master
+
+  validate-hacs:
+    name: HACS Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: HACS validation
+        uses: hacs/action@main
+        with:
+          category: "integration"
+
+  validate-structure:
+    name: Validate Project Structure
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check required files
+        run: |
+          ERRORS=0
+
+          # Check critical files
+          FILES=(
+            "hacs.json"
+            "README.md"
+            "LICENSE"
+            "custom_components/hume_tts/__init__.py"
+            "custom_components/hume_tts/manifest.json"
+            "custom_components/hume_tts/config_flow.py"
+            "custom_components/hume_tts/tts.py"
+            "custom_components/hume_tts/const.py"
+            "custom_components/hume_tts/strings.json"
+          )
+
+          for FILE in "${FILES[@]}"; do
+            if [ ! -e "$FILE" ]; then
+              echo "❌ Missing: $FILE"
+              ERRORS=$((ERRORS + 1))
+            else
+              echo "✅ Found: $FILE"
+            fi
+          done
+
+          if [ $ERRORS -gt 0 ]; then
+            echo "❌ $ERRORS required file(s) missing"
+            exit 1
+          fi
+
+          echo "✅ All required files present"
+
+  validate-manifest:
+    name: Validate Manifest
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install jq
+        run: sudo apt-get install -y jq
+
+      - name: Check manifest.json validity
+        run: |
+          MANIFEST="custom_components/hume_tts/manifest.json"
+          
+          # Check if valid JSON
+          if ! jq empty "$MANIFEST" 2>/dev/null; then
+            echo "❌ Invalid JSON in manifest.json"
+            exit 1
+          fi
+          
+          echo "✅ manifest.json is valid JSON"
+          
+          # Check required fields
+          REQUIRED_FIELDS=(
+            "domain"
+            "name"
+            "version"
+            "documentation"
+            "requirements"
+          )
+          
+          ERRORS=0
+          for FIELD in "${REQUIRED_FIELDS[@]}"; do
+            if ! jq -e ".$FIELD" "$MANIFEST" > /dev/null 2>&1; then
+              echo "❌ Missing required field: $FIELD"
+              ERRORS=$((ERRORS + 1))
+            else
+              echo "✅ Field '$FIELD' present"
+            fi
+          done
+          
+          if [ $ERRORS -gt 0 ]; then
+            exit 1
+          fi
+          
+          # Display manifest info
+          echo ""
+          echo "📦 Integration Info:"
+          jq '{domain, name, version, codeowners}' "$MANIFEST"
+
+  validate-version:
+    name: Validate Version Format
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install jq
+        run: sudo apt-get install -y jq
+
+      - name: Check version format
+        run: |
+          VERSION=$(jq -r '.version' custom_components/hume_tts/manifest.json)
+          echo "📌 Manifest version: $VERSION"
+
+          # Version format: X.Y.Z or similar semantic versioning
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(\.?[0-9]+)?$ ]]; then
+            echo "❌ Version must follow semantic versioning (X.Y.Z)"
+            exit 1
+          fi
+
+          echo "✅ Version format is valid: $VERSION"
