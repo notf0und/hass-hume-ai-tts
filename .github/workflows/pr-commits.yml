@@ -29,7 +29,7 @@ jobs:
 
             // Replace everything between the Commits header and the next ## header
             const updated = currentBody.replace(
-              /(## Commits\n)[\s\S]*?(\n## )/,
+              /(## Commits\r?\n)[\s\S]*?(\r?\n## )/,
               `$1\n${commitLines}\n$2`
             );
 
