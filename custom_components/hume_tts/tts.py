@@ -23,13 +23,15 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import HumeTTSConfigEntry
 from .const import (
+    CONF_MODEL,
     CONF_VOICE,
+    DEFAULT_MODEL,
     DEFAULT_VOICE,
     DOMAIN,
-    PROVIDER_CUSTOM,
     PROVIDER_HUME_AI,
     VOICE_KEY_SEPARATOR,
 )
+from .api.voices import fetch_voices
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -59,19 +61,12 @@ async def async_setup_entry(
     _LOGGER.debug("Hume AI TTS: async_setup_entry START")
     client = config_entry.runtime_data.client
     default_voice_key = config_entry.options.get(CONF_VOICE, DEFAULT_VOICE)
+    model = config_entry.options.get(CONF_MODEL, DEFAULT_MODEL)
 
-    voices: list[Voice] = []
-    for provider in (PROVIDER_HUME_AI, PROVIDER_CUSTOM):
-        try:
-            pager = await client.tts.voices.list(provider=provider, page_size=100)
-            async for voice in pager:
-                if voice.name:
-                    key = f"{voice.name}{VOICE_KEY_SEPARATOR}{provider}"
-                    voices.append(Voice(voice_id=key, name=voice.name))
-        except Exception:  # noqa: BLE001
-            _LOGGER.exception("Could not fetch voices for provider %s", provider)
-
-    voices.sort(key=lambda v: v.name.lower())
+    voices: list[Voice] = [
+        Voice(voice_id=v.key, name=v.name)
+        for v in await fetch_voices(client)
+    ]
 
     _LOGGER.debug("Hume AI TTS: async_setup_entry adding %d voices, default=%s", len(voices), default_voice_key)
     async_add_entities(
@@ -80,6 +75,7 @@ async def async_setup_entry(
                 client=client,
                 voices=voices,
                 default_voice_key=default_voice_key,
+                model=model,
                 entry_id=config_entry.entry_id,
             )
         ]
@@ -114,11 +110,13 @@ class HumeTTSEntity(TextToSpeechEntity):
         client: AsyncHumeClient,
         voices: list[Voice],
         default_voice_key: str,
+        model: str,
         entry_id: str,
     ) -> None:
         """Init Hume AI TTS service."""
         self._client = client
         self._default_voice_key = default_voice_key
+        self._model = model
         self._voices = voices
         self._attr_name = "Hume AI"
         self._attr_unique_id = entry_id
@@ -142,13 +140,15 @@ class HumeTTSEntity(TextToSpeechEntity):
         """Load TTS audio from the Hume AI API."""
         voice_key = options.get(ATTR_VOICE, self._default_voice_key)
         description = options.get(ATTR_DESCRIPTION)
-        _LOGGER.debug("Hume AI TTS called: voice=%s description=%r text=%r", voice_key, description, message)
+        version = self._model if self._model != "auto" else None
+        _LOGGER.debug("Hume AI TTS called: voice=%s model=%s description=%r text=%r", voice_key, self._model, description, message)
 
         try:
             result = await self._client.tts.synthesize_json(
                 utterances=[_build_utterance(message, voice_key, description)],
                 format=FormatMp3(),
                 num_generations=1,
+                version=version,
             )
         except ApiError as exc:
             _LOGGER.exception("Hume AI TTS API error: %s", exc)

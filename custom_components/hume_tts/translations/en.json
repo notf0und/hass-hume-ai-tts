@@ -2,6 +2,7 @@
   "config": {
     "error": {
       "invalid_api_key": "Invalid API key",
+      "no_voices": "No voices found. Check your API key has access to the Hume TTS API.",
       "unknown": "Unexpected error"
     },
     "step": {
@@ -11,6 +12,16 @@
         },
         "data_description": {
           "api_key": "API key from Hume console"
+        }
+      },
+      "voice": {
+        "data": {
+          "voice": "Default voice",
+          "model": "Model"
+        },
+        "data_description": {
+          "voice": "The Hume AI voice to use by default for text-to-speech. Includes both Hume AI preset voices and your custom saved voices.",
+          "model": "The Octave model version to use. Auto lets Hume route to the best available model. Octave 2 supports more languages and lower latency."
         }
       }
     }
@@ -26,10 +37,12 @@
     "step": {
       "init": {
         "data": {
-          "voice": "Default voice"
+          "voice": "Default voice",
+          "model": "Model"
         },
         "data_description": {
-          "voice": "The Hume AI voice to use by default for text-to-speech. Includes both Hume AI preset voices and your custom saved voices."
+          "voice": "The Hume AI voice to use by default for text-to-speech. Includes both Hume AI preset voices and your custom saved voices.",
+          "model": "The Octave model version to use. Auto lets Hume route to the best available model. Octave 2 supports more languages and lower latency."
         }
       }
     }
