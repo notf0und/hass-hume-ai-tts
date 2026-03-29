@@ -39,6 +39,9 @@ categories:
     labels:
       - "dependencies"
       - "build"
+  - title: "🔀 Other Changes"
+    labels:
+      - "*"
 
 version-resolver:
   major:
@@ -61,7 +64,7 @@ version-resolver:
   default: patch
 
 template: |
-  ### Changes
+  ## Changes
 
   $CHANGES
 
