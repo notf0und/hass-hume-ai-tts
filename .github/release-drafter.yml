@@ -39,6 +39,13 @@ categories:
     labels:
       - "dependencies"
       - "build"
+  - title: "⚙️ Workflows"
+    labels:
+      - "workflow"
+      - "workflows"
+  - title: "🔀 Other Changes"
+    labels:
+      - "*"
 
 version-resolver:
   major:
@@ -61,7 +68,7 @@ version-resolver:
   default: patch
 
 template: |
-  ### Changes
+  ## Changes
 
   $CHANGES
 
