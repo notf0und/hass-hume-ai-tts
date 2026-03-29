@@ -53,7 +53,7 @@ jobs:
             "custom_components/hume_tts/config_flow.py"
             "custom_components/hume_tts/tts.py"
             "custom_components/hume_tts/const.py"
-            "custom_components/hume_tts/strings.json"
+            "custom_components/hume_tts/translations/en.json"
           )
 
           for FILE in "${FILES[@]}"; do
