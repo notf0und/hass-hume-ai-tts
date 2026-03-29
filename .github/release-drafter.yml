@@ -3,6 +3,7 @@ name-template: "v$RESOLVED_VERSION"
 tag-template: "v$RESOLVED_VERSION"
 commitish: main
 change-template: "- $TITLE @$AUTHOR (#$NUMBER)"
+change-title-escapes: '\<*_&'
 sort-direction: ascending
 
 categories:
@@ -60,6 +61,8 @@ version-resolver:
   default: patch
 
 template: |
-  ## Changes
+  ### Changes
 
   $CHANGES
+
+  **Full Changelog**: https://github.com/$OWNER/$REPOSITORY/compare/$PREVIOUS_TAG...v$RESOLVED_VERSION
