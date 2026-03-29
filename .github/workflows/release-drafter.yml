@@ -1,6 +1,13 @@
 name: Release Drafter
 
 on:
+  workflow_dispatch:
+    inputs:
+      release_commitish:
+        description: 'Commitish to use for drafting notes'
+        required: false
+        type: string
+        default: 'main'
   push:
     branches:
       - main
@@ -18,5 +25,7 @@ jobs:
       - uses: release-drafter/release-drafter@v6
         with:
           config-name: release-drafter.yml
+          commitish: ${{ github.event.inputs.release_commitish || 'main' }}
+          disable-autolabeler: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
