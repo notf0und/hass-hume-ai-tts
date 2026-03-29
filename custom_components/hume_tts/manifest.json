@@ -1,12 +1,16 @@
 {
   "domain": "hume_tts",
   "name": "Hume AI TTS",
-  "codeowners": ["@notf0und"],
+  "codeowners": [
+    "@notf0und"
+  ],
   "config_flow": true,
   "documentation": "https://github.com/notf0und/hass-hume-ai-tts",
   "integration_type": "service",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/notf0und/hass-hume-ai-tts/issues",
-  "requirements": ["hume==0.13.10"],
-  "version": "1.0.0"
+  "requirements": [
+    "hume==0.13.10"
+  ],
+  "version": "1.0.6"
 }
