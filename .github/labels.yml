@@ -1,12 +1,13 @@
 ---
 # GitHub labels for Hume AI TTS
-# These labels are automatically configured using GitHub Labeler Action
-# https://github.com/marketplace/actions/github-labeler
-#
-# Labels are used by Release Drafter to organize changelog entries
+# Kept in sync with release-drafter.yml categories and version-resolver
 
-# Feature labels
+# 🚀 Features
 - name: feature
+  description: New feature
+  color: a2eeef
+
+- name: feat
   description: New feature
   color: a2eeef
 
@@ -14,7 +15,7 @@
   description: Enhancement to existing functionality
   color: a2eeef
 
-# Bug labels
+# 🐛 Fixes
 - name: bug
   description: Something isn't working
   color: d73a4a
@@ -23,17 +24,29 @@
   description: Bug fix
   color: d73a4a
 
-# Testing labels
+- name: bugfix
+  description: Bug fix
+  color: d73a4a
+
+# 🧪 Testing
 - name: test
   description: Testing and test improvements
   color: b1fc6f
 
-# Documentation labels
+- name: testing
+  description: Testing and test improvements
+  color: b1fc6f
+
+# 📚 Documentation
 - name: docs
-  description: Improvements or additions to documentation
+  description: Documentation changes
   color: 0075ca
 
-# Maintenance labels
+- name: documentation
+  description: Documentation changes
+  color: 0075ca
+
+# 🔧 Maintenance
 - name: chore
   description: Maintenance or chore task
   color: ef67c4
@@ -42,12 +55,15 @@
   description: Maintenance changes
   color: ef67c4
 
-# Dependency labels
-- name: dependencies
-  description: Pull requests that update a dependency file
-  color: 0366d6
+- name: refactor
+  description: Code refactoring
+  color: ef67c4
 
-# Breaking change labels
+- name: refactoring
+  description: Code refactoring
+  color: ef67c4
+
+# ⚠️ Breaking Changes
 - name: breaking
   description: Breaking change
   color: bfd4f2
@@ -56,7 +72,25 @@
   description: Breaking change
   color: bfd4f2
 
-# Version bump labels
+# 🔄 Dependencies
+- name: dependencies
+  description: Dependency updates
+  color: 0366d6
+
+- name: build
+  description: Build system changes
+  color: 0366d6
+
+# ⚙️ Workflows
+- name: workflow
+  description: CI/CD workflow changes
+  color: 4a97d6
+
+- name: workflows
+  description: CI/CD workflow changes
+  color: 4a97d6
+
+# Version bump labels (used by version-resolver)
 - name: major
   description: Triggers a major version bump
   color: e11d48
@@ -68,28 +102,3 @@
 - name: patch
   description: Triggers a patch version bump
   color: 22c55e
-
-# Issue management labels
-- name: help wanted
-  description: Extra attention is needed
-  color: 008672
-
-- name: good first issue
-  description: Good for newcomers
-  color: 7057ff
-
-- name: question
-  description: Further information is requested
-  color: d876e3
-
-- name: duplicate
-  description: This issue or pull request already exists
-  color: cfd3d7
-
-- name: invalid
-  description: This doesn't seem right
-  color: e4e669
-
-- name: wontfix
-  description: This will not be worked on
-  color: ffffff

@@ -39,6 +39,10 @@ categories:
     labels:
       - "dependencies"
       - "build"
+  - title: "⚙️ Workflows"
+    labels:
+      - "workflow"
+      - "workflows"
   - title: "🔀 Other Changes"
     labels:
       - "*"

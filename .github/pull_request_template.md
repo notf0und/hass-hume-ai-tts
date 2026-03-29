@@ -15,6 +15,7 @@
 - [ ] 🧪 Tests (`test`)
 - [ ] 🔧 Maintenance / Chore (`chore`, `maintenance`)
 - [ ] 🔄 Dependencies (`dependencies`)
+- [ ] ⚙️ Workflow (`workflow`)
 - [ ] 📖 Documentation (`docs`)
 - [ ] ⚠️ Breaking Change (`breaking`)
 
