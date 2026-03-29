@@ -17,6 +17,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Set release version number in manifest
         shell: bash
@@ -24,9 +26,16 @@ jobs:
           version="${{ github.event.release.tag_name }}"
           version="${version,,}"
           version="${version#v}"
-          # update manifest.json
           jq ".version = \"${version}\"" "${{ env.HUME_TTS_ROOT_DIR }}/manifest.json" > "${{ env.HUME_TTS_ROOT_DIR }}/manifest.json.tmp"
           mv "${{ env.HUME_TTS_ROOT_DIR }}/manifest.json.tmp" "${{ env.HUME_TTS_ROOT_DIR }}/manifest.json"
+
+      - name: Commit updated manifest.json
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add custom_components/hume_tts/manifest.json
+          git commit -m "chore: bump version to ${{ github.event.release.tag_name }}"
+          git push origin main
 
       - name: Zip the integration directory
         run: |
