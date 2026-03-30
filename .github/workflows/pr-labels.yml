@@ -1,0 +1,93 @@
+name: Sync PR Labels ↔ Checkboxes
+
+on:
+  pull_request:
+    types: [opened, edited, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    name: Sync labels ↔ checkboxes
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      issues: write
+
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            // Map each checkbox text (must match PR template exactly) to its labels.
+            // "primary" is the label assigned when the box is checked.
+            // "labels" lists all aliases that should be treated as matching.
+            const MAPPING = [
+              { text: '🚀 Feature / Enhancement', primary: 'feature',      labels: ['feature', 'feat', 'enhancement'] },
+              { text: '🐛 Bug Fix',               primary: 'bug',          labels: ['bug', 'fix', 'bugfix'] },
+              { text: '🧪 Tests',                 primary: 'test',         labels: ['test', 'testing'] },
+              { text: '🔧 Maintenance / Chore',   primary: 'chore',        labels: ['chore', 'maintenance', 'refactor', 'refactoring'] },
+              { text: '🔄 Dependencies',          primary: 'dependencies', labels: ['dependencies', 'build'] },
+              { text: '⚙️ Workflow',              primary: 'workflow',     labels: ['workflow', 'workflows'] },
+              { text: '📖 Documentation',         primary: 'docs',         labels: ['docs', 'documentation'] },
+              { text: '⚠️ Breaking Change',       primary: 'breaking',     labels: ['breaking', 'breaking-change'] },
+            ];
+
+            function isChecked(body, text) {
+              return body.includes(`- [x] ${text}`) || body.includes(`- [X] ${text}`);
+            }
+
+            function setChecked(body, text, checked) {
+              const marker = checked ? '[x]' : '[ ]';
+              return body
+                .replace(`- [ ] ${text}`, `- ${marker} ${text}`)
+                .replace(`- [x] ${text}`, `- ${marker} ${text}`)
+                .replace(`- [X] ${text}`, `- ${marker} ${text}`);
+            }
+
+            const pr = context.payload.pull_request;
+            const body = pr.body ?? '';
+            const action = context.payload.action;
+            const currentLabels = pr.labels.map(l => l.name);
+
+            if (action === 'labeled' || action === 'unlabeled') {
+              // Label changed → update checkboxes in the PR body
+              let newBody = body;
+              for (const entry of MAPPING) {
+                const hasLabel = entry.labels.some(l => currentLabels.includes(l));
+                newBody = setChecked(newBody, entry.text, hasLabel);
+              }
+              if (newBody !== body) {
+                await github.rest.pulls.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: pr.number,
+                  body: newBody,
+                });
+              }
+            } else {
+              // Body edited or PR opened → sync labels from checkboxes
+              for (const entry of MAPPING) {
+                const checked = isChecked(body, entry.text);
+                const hasLabel = entry.labels.some(l => currentLabels.includes(l));
+
+                if (checked && !hasLabel) {
+                  await github.rest.issues.addLabels({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: pr.number,
+                    labels: [entry.primary],
+                  });
+                } else if (!checked && hasLabel) {
+                  // Remove all aliases that may have been applied
+                  for (const label of entry.labels.filter(l => currentLabels.includes(l))) {
+                    await github.rest.issues.removeLabel({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      issue_number: pr.number,
+                      name: label,
+                    });
+                  }
+                }
+              }
+            }

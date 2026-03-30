@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import logging
+import re
 from typing import Any
 
 from hume import AsyncHumeClient
@@ -36,6 +37,47 @@ from .api.voices import fetch_voices
 _LOGGER = logging.getLogger(__name__)
 
 ATTR_DESCRIPTION = "description"
+
+# Hume Octave API character limit per utterance
+MAX_CHARS_PER_UTTERANCE = 500
+
+
+def _split_text_into_chunks(text: str, max_chars: int = MAX_CHARS_PER_UTTERANCE) -> list[str]:
+    """Split text into chunks at sentence boundaries, each within max_chars."""
+    sentences = re.split(r'(?<=[.!?])\s+', text.strip())
+    chunks: list[str] = []
+    current: str = ""
+
+    for sentence in sentences:
+        if not sentence:
+            continue
+        # If a single sentence still exceeds the limit, split further at clause boundaries
+        if len(sentence) > max_chars:
+            clauses = re.split(r'(?<=[,;])\s+', sentence)
+            for clause in clauses:
+                if not clause:
+                    continue
+                candidate = (current + " " + clause).strip() if current else clause
+                if len(candidate) <= max_chars:
+                    current = candidate
+                else:
+                    if current:
+                        chunks.append(current)
+                    current = clause
+        else:
+            candidate = (current + " " + sentence).strip() if current else sentence
+            if len(candidate) <= max_chars:
+                current = candidate
+            else:
+                if current:
+                    chunks.append(current)
+                current = sentence
+
+    if current:
+        chunks.append(current)
+
+    return chunks if chunks else [text]
+
 
 SUPPORTED_LANGUAGES = [
     "en",
@@ -144,8 +186,11 @@ class HumeTTSEntity(TextToSpeechEntity):
         _LOGGER.debug("Hume AI TTS called: voice=%s model=%s description=%r text=%r", voice_key, self._model, description, message)
 
         try:
+            chunks = _split_text_into_chunks(message)
+            utterances = [_build_utterance(chunk, voice_key, description) for chunk in chunks]
+            _LOGGER.debug("Hume AI TTS: %d utterance chunk(s) for %d chars", len(chunks), len(message))
             result = await self._client.tts.synthesize_json(
-                utterances=[_build_utterance(message, voice_key, description)],
+                utterances=utterances,
                 format=FormatMp3(),
                 num_generations=1,
                 version=version,
