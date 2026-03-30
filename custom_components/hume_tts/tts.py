@@ -8,7 +8,7 @@ import re
 from typing import Any
 
 from hume import AsyncHumeClient
-from hume.core import ApiError
+from hume.core import ApiError, RequestOptions
 from hume.tts import FormatMp3, PostedUtterance, PostedUtteranceVoiceWithName
 
 from homeassistant.components.tts import (
@@ -40,6 +40,9 @@ ATTR_DESCRIPTION = "description"
 
 # Hume Octave API character limit per utterance
 MAX_CHARS_PER_UTTERANCE = 500
+
+# Generous timeout for long multi-utterance synthesis (seconds)
+TTS_TIMEOUT_SECONDS = 60
 
 
 def _split_text_into_chunks(text: str, max_chars: int = MAX_CHARS_PER_UTTERANCE) -> list[str]:
@@ -194,6 +197,7 @@ class HumeTTSEntity(TextToSpeechEntity):
                 format=FormatMp3(),
                 num_generations=1,
                 version=version,
+                request_options=RequestOptions(timeout_in_seconds=TTS_TIMEOUT_SECONDS),
             )
         except ApiError as exc:
             _LOGGER.exception("Hume AI TTS API error: %s", exc)
