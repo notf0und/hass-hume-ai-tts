@@ -50,6 +50,15 @@ jobs:
             const action = context.payload.action;
             const currentLabels = pr.labels.map(l => l.name);
 
+            // For 'edited' events, only proceed if a mapped checkbox actually changed.
+            if (action === 'edited') {
+              const prevBody = context.payload.changes?.body?.from ?? '';
+              const anyMappedCheckboxChanged = MAPPING.some(
+                entry => isChecked(body, entry.text) !== isChecked(prevBody, entry.text)
+              );
+              if (!anyMappedCheckboxChanged) return;
+            }
+
             if (action === 'labeled' || action === 'unlabeled') {
               // Label changed → update checkboxes in the PR body
               let newBody = body;
