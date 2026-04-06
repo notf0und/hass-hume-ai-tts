@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import asyncio
 import base64
+import contextlib
+import json
 import logging
 import re
+from collections.abc import AsyncGenerator
 from typing import Any
 
+import aiohttp
 from hume import AsyncHumeClient
 from hume.core import ApiError, RequestOptions
 from hume.tts import FormatMp3, PostedUtterance, PostedUtteranceVoiceWithName
@@ -17,8 +22,11 @@ from homeassistant.components.tts import (
     TtsAudioType,
     Voice,
 )
+from homeassistant.components.tts.entity import TTSAudioRequest, TTSAudioResponse
+from homeassistant.const import CONF_API_KEY
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
@@ -34,6 +42,11 @@ from .const import (
 )
 from .api.voices import fetch_voices
 
+HUME_WS_TTS_URL = "wss://api.hume.ai/v0/tts/stream/input"
+
+# Regex for sentence-boundary flushing: ends with .!? optionally followed by quotes/brackets
+_SENTENCE_END_RE = re.compile(r'[.!?]["\'\)\]]*\s*$')
+
 _LOGGER = logging.getLogger(__name__)
 
 ATTR_DESCRIPTION = "description"
@@ -43,6 +56,9 @@ MAX_CHARS_PER_UTTERANCE = 500
 
 # Generous timeout for long multi-utterance synthesis (seconds)
 TTS_TIMEOUT_SECONDS = 60
+
+# Timeout waiting for first audio chunk from Hume WS (seconds)
+WS_FIRST_CHUNK_TIMEOUT = 10
 
 
 def _split_text_into_chunks(text: str, max_chars: int = MAX_CHARS_PER_UTTERANCE) -> list[str]:
@@ -118,6 +134,7 @@ async def async_setup_entry(
         [
             HumeTTSEntity(
                 client=client,
+                api_key=config_entry.data[CONF_API_KEY],
                 voices=voices,
                 default_voice_key=default_voice_key,
                 model=model,
@@ -153,6 +170,7 @@ class HumeTTSEntity(TextToSpeechEntity):
     def __init__(
         self,
         client: AsyncHumeClient,
+        api_key: str,
         voices: list[Voice],
         default_voice_key: str,
         model: str,
@@ -160,6 +178,7 @@ class HumeTTSEntity(TextToSpeechEntity):
     ) -> None:
         """Init Hume AI TTS service."""
         self._client = client
+        self._api_key = api_key
         self._default_voice_key = default_voice_key
         self._model = model
         self._voices = voices
@@ -213,4 +232,148 @@ class HumeTTSEntity(TextToSpeechEntity):
         audio_bytes = base64.b64decode(result.generations[0].audio)
         _LOGGER.debug("Hume AI TTS success: %d bytes", len(audio_bytes))
         return "mp3", audio_bytes
+
+    async def async_stream_tts_audio(
+        self, request: TTSAudioRequest
+    ) -> TTSAudioResponse:
+        """Stream TTS audio from Hume AI via WebSocket.
+
+        Called by HA's pipeline when the LLM response is long enough to stream
+        (>= STREAM_RESPONSE_CHARS chars).  Hume's WS endpoint allows us to feed
+        text incrementally and receive MP3 chunks in real time, so the satellite
+        can start playing before synthesis is complete.
+        """
+        voice_key = request.options.get(ATTR_VOICE, self._default_voice_key)
+        description = request.options.get(ATTR_DESCRIPTION)
+        voice_name, provider = _parse_voice_key(voice_key)
+
+        audio_queue: asyncio.Queue[bytes | None] = asyncio.Queue()
+        # Set once _send_text has sent all utterances; switches receive to a short timeout.
+        send_done = asyncio.Event()
+
+        async def _stream_chunks() -> AsyncGenerator[bytes, None]:
+            """Yield MP3 chunks from the queue until the sentinel None is received."""
+            while True:
+                chunk = await audio_queue.get()
+                if chunk is None:
+                    return
+                yield chunk
+
+        async def _run_ws() -> None:
+            """Connect to Hume WS, feed LLM tokens, collect audio chunks."""
+            url = (
+                f"{HUME_WS_TTS_URL}"
+                f"?api_key={self._api_key}"
+                f"&instant_mode=true"
+                f"&strip_headers=true"
+                f"&no_binary=true"
+            )
+            session = async_get_clientsession(self.hass)
+
+            try:
+                async with session.ws_connect(url) as ws:
+                    send_task = asyncio.ensure_future(_send_text(ws))
+                    receive_task = asyncio.ensure_future(_receive_audio(ws))
+
+                    try:
+                        await asyncio.gather(send_task, receive_task)
+                    except Exception:
+                        send_task.cancel()
+                        receive_task.cancel()
+                        with contextlib.suppress(asyncio.CancelledError):
+                            await send_task
+                        with contextlib.suppress(asyncio.CancelledError):
+                            await receive_task
+                        raise
+                    await ws.close()
+            except Exception as exc:
+                _LOGGER.exception("Hume AI streaming TTS error: %s", exc)
+                raise HomeAssistantError(exc) from exc
+            finally:
+                await audio_queue.put(None)
+
+        async def _send_text(ws: aiohttp.ClientWebSocketResponse) -> None:
+            """Read LLM token stream and send utterances to Hume at sentence boundaries."""
+            buffer = ""
+            async for token in request.message_gen:
+                buffer += token
+                if _SENTENCE_END_RE.search(buffer):
+                    await _flush_utterance(ws, buffer.strip())
+                    buffer = ""
+                    # Yield so _receive_audio can process early chunks between flushes.
+                    await asyncio.sleep(0)
+
+            if buffer.strip():
+                await _flush_utterance(ws, buffer.strip())
+
+            # All text sent — receiver switches to a short idle timeout.
+            send_done.set()
+            _LOGGER.debug("Hume AI streaming TTS: all text sent")
+
+        async def _flush_utterance(ws: aiohttp.ClientWebSocketResponse, text: str) -> None:
+            """Send one utterance + flush to Hume using the WS flat PublishTts format."""
+            _LOGGER.debug("Hume AI streaming TTS: sending %d chars", len(text))
+            # WS endpoint uses flat PublishTts fields, NOT the REST "utterances" wrapper.
+            msg: dict = {
+                "text": text,
+                "voice": {"name": voice_name, "provider": provider},
+                "flush": True,
+            }
+            if description:
+                msg["description"] = description
+            await ws.send_str(json.dumps(msg))
+
+        async def _receive_audio(ws: aiohttp.ClientWebSocketResponse) -> None:
+            """Collect base64 audio chunks from Hume and push decoded bytes to the queue."""
+            chunks_received = 0
+            while True:
+                # After all text is sent, allow 5 s of silence before giving up.
+                # Before that, wait up to 30 s (covers slow LLM token generation).
+                timeout = 5.0 if send_done.is_set() else 30.0
+                try:
+                    msg = await asyncio.wait_for(ws.receive(), timeout=timeout)
+                except asyncio.TimeoutError:
+                    _LOGGER.debug(
+                        "Hume AI streaming TTS: receive timeout (send_done=%s, chunks=%d)",
+                        send_done.is_set(), chunks_received,
+                    )
+                    break
+
+                if msg.type == aiohttp.WSMsgType.TEXT:
+                    try:
+                        data = json.loads(msg.data)
+                    except json.JSONDecodeError:
+                        _LOGGER.warning("Hume AI streaming TTS: invalid JSON: %.200s", msg.data)
+                        continue
+
+                    # Log non-audio fields to help understand Hume's protocol.
+                    meta = {k: v for k, v in data.items() if k != "audio"}
+                    if meta:
+                        _LOGGER.debug("Hume AI streaming TTS: msg meta: %s", meta)
+
+                    if audio_b64 := data.get("audio"):
+                        audio_bytes = base64.b64decode(audio_b64)
+                        await audio_queue.put(audio_bytes)
+                        chunks_received += 1
+                        _LOGGER.debug(
+                            "Hume AI streaming TTS: chunk %d (%d bytes)",
+                            chunks_received,
+                            len(audio_bytes),
+                        )
+                elif msg.type in (
+                    aiohttp.WSMsgType.CLOSE,
+                    aiohttp.WSMsgType.CLOSING,
+                    aiohttp.WSMsgType.CLOSED,
+                    aiohttp.WSMsgType.ERROR,
+                ):
+                    _LOGGER.debug(
+                        "Hume AI streaming TTS: WS closed (type=%s, data=%s)",
+                        msg.type, msg.data,
+                    )
+                    break
+
+            _LOGGER.debug("Hume AI streaming TTS: receive complete (%d chunks)", chunks_received)
+
+        asyncio.ensure_future(_run_ws())
+        return TTSAudioResponse(extension="mp3", data_gen=_stream_chunks())
 
