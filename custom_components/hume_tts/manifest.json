@@ -12,5 +12,5 @@
   "requirements": [
     "hume==0.13.10"
   ],
-  "version": "1.0.7"
+  "version": "1.1.0"
 }
